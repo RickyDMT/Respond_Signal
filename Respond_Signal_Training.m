@@ -131,7 +131,7 @@ DEBUG=1;
 %only 1 monitor, then it just chooses that one)
 Screen('Preference', 'SkipSyncTests', 1);
 
-screenNumber= 1; %max(Screen('Screens'));
+screenNumber= max(Screen('Screens'));
 
 if DEBUG==1;
     %create a rect for the screen
@@ -386,26 +386,25 @@ function [trial_rt, correct] = DoPicRespST(trial,block,varargin)
 global w STIM PICS COLORS RespST KEY pahandle
 
 correct = -999;
-donezo = 0;
-FlushEvents();
 
 trialduration = STIM.trialdur - RespST.var.delay(trial,block);
 
 Screen('DrawTexture',w,PICS.out(trial).texture);
-RT_start = Screen('Flip',w);
+pre_start = Screen('Flip',w);
 
     %First check for premature button pressing.
     pre = 0;
     prefail = 0;
     while pre < RespST.var.delay(trial,block);
-        pre = GetSecs - RT_start;
+        pre = GetSecs - pre_start;
         [Down_pre, ~, Code_pre] = KbCheck(); %waits for space bar to be pressed
         if Down_pre == 1 && find(Code_pre) == KEY.rt
             %Pressed too soon.
-            trial_rt = RT_start - GetSecs - RespST.var.delay(trial,block);      %This will show -X ms how early they were.
+            trial_rt = pre_start - GetSecs() - RespST.var.delay(trial,block);      %This will show -X ms how early they were.
             Screen('DrawTexture',w,PICS.out(trial).texture);
             DrawFormattedText(w,'X\n\nToo soon','center','center',COLORS.RED);
             prefail = 1;
+            correct = 0;
             Screen('Flip',w');
             WaitSecs(.5);
             break
@@ -413,17 +412,21 @@ RT_start = Screen('Flip',w);
             FlushEvents();
         end
     end
-    
-    if RespST.var.GoNoGo(trial,block) == 1 && correct == -999;
-        %If GoTone trial and you haven't pressed the button early, then RT is not from flip above, but from tone start.
-        RT_start = PsychPortAudio('Start', pahandle, 1);
-    end
 
 if prefail == 0;
+    
+    if RespST.var.GoNoGo(trial,block) == 1
+        %If GoTone trial and you haven't pressed the button early, then RT is not from flip above, but from tone start.
+        PsychPortAudio('Start', pahandle, 1);
+    end
+        RT_start = GetSecs();
+ 
+    
     telap = 0;
-    while telap < 5;
+    while telap < trialduration;
         telap = GetSecs() - RT_start;
         [Down, ~, Code] = KbCheck(); %waits for space bar to be pressed
+        
         if Down == 1 && find(Code) == KEY.rt
             trial_rt = GetSecs() - RT_start;
             
@@ -432,41 +435,37 @@ if prefail == 0;
                 Screen('DrawTexture',w,PICS.out(trial).texture);
                 DrawFormattedText(w,'X','center','center',COLORS.RED);
                 correct = 0;
-                donezo = 1;
                 Screen('Flip',w');
                 WaitSecs(.5);
                 break
             elseif RespST.var.GoNoGo(trial,block) == 1;
                 %Correct press
                 correct = 1;
-                donezo = 1;
                 WaitSecs(.5);
                 break;
             end
             FlushEvents();
         end
     end
+    
+    
+    if correct == -999
+        if RespST.var.GoNoGo(trial,block) == 0;    %If NoGo & Correct no press, do nothing & move to inter-trial black screen
+            Screen('Flip',w);                   %'Flip in order to clear buffer; next 'flip' (in main script) flips to black screen.
+            correct = 1;
+        elseif RespST.var.GoNoGo(trial,block) == 1;
+            Screen('DrawTexture',w,PICS.out(trial).texture);
+            DrawFormattedText(w,'X','center','center',COLORS.RED);
+            Screen('Flip',w);
+            correct = 0;
+            WaitSecs(.5);
+        end
+        trial_rt = -999;
+    end
+
 end
 
-% if donezo == 0;
-trial_rt = -999;
-correct = 0;
-% end
-% if donezo == 0 && prefail == 0;
-%     if RespST.var.GoNoGo(trial,block) == 0;    %If NoGo & Correct no press, do nothing & move to inter-trial black screen
-%         Screen('Flip',w);                   %'Flip in order to clear buffer; next 'flip' (in main script) flips to black screen.
-%         correct = 1;
-%     elseif RespST.var.GoNoGo(trial,block) == 1;
-%         Screen('DrawTexture',w,PICS.out(trial).texture);
-%         DrawFormattedText(w,'XX','center','center',COLORS.RED);
-%         Screen('Flip',w);
-%         correct = 0;
-%         WaitSecs(.5);
-%     end
-%     trial_rt = -999;
-% end
 
-clear donezo prefail
 end
 
 %%
