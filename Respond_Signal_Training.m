@@ -3,6 +3,8 @@ function Respond_Signal_Training(varargin)
 % Contact: elk@uoregon.edu
 % Download latest version at: github.com/RickyDMT/Respond_Signal_Training
 
+%Needs rated pics added.
+
 
 global KEY COLORS w wRect XCENTER YCENTER PICS STIM RespST trial pahandle
 
