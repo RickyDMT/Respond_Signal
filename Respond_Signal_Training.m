@@ -8,14 +8,15 @@ function Respond_Signal_Training(varargin)
 
 global KEY COLORS w wRect XCENTER YCENTER PICS STIM RespST trial pahandle
 
-prompt={'SUBJECT ID' 'Condition (1 or 2)' 'Session (1, 2, or 3)'};
-defAns={'4444' '' ''};
+prompt={'SUBJECT ID' 'Condition (1 or 2)' 'Session (1, 2, or 3)' 'Practice (1 or 0)'};
+defAns={'4444' '1' '1' '1'};
 
 answer=inputdlg(prompt,'Please input subject info',1,defAns);
 
 ID=str2double(answer{1});
 COND = str2double(answer{2});
 SESS = str2double(answer{3});
+prac = str2double(answer{4});
 
 file_check = sprintf('RespST_%d_%d.mat',ID,SESS);
 
@@ -60,25 +61,70 @@ STIM.totes = STIM.blocks*STIM.trials;
 STIM.trialdur = 1.5;
 
 %% Find and load pics
-[imgdir,~,~] = fileparts(which('Respond_Signal_Training.m'));
+[imgdir,~,~] = fileparts(which('MasterPics_PlaceHolder.m'));
+picratefolder = fullfile(imgdir,'SavingsRatings');
 
 try
-    cd([imgdir filesep 'IMAGES'])
+    cd(picratefolder)
 catch
-    error('Could not find and/or open the IMAGES folder.');
+    error('Could not find and/or open the .');
 end
+
+filen = sprintf('PicRate_%03d.mat',ID);
+try
+    p = open(filen);
+catch
+    warning('Could not find and/or open the rating file.');
+    commandwindow;
+    randopics = input('Would you like to continue with a random selection of images? [1 = Yes, 0 = No]');
+    if randopics == 1
+        p = struct;
+        p.PicRating.go = dir('Healthy*');
+        p.PicRating.no = dir('Unhealthy*');
+        %XXX: ADD RANDOMIZATION SO THAT SAME 80 IMAGES AREN'T CHOSEN
+        %EVERYTIME
+    else
+        error('Task cannot proceed without images. Contact Erik (elk@uoregon.edu) if you have continued problems.')
+    end
+    
+end
+
+cd(imgdir);
+ 
 
 PICS =struct;
 if COND == 1;                   %Condtion = 1 is food. 
-    PICS.in.go = dir('good*.jpg');
-    PICS.in.no = dir('*bad*.jpg');
-    PICS.in.neut = dir('*water*.jpg');
+%     PICS.in.go = dir('good*.jpg');
+%     PICS.in.no = dir('*bad*.jpg');
+    %Choose top 80 most appetizing pics)
+    PICS.in.go = struct('name',{p.PicRating.go(1:80).name}');
+    PICS.in.no = struct('name',{p.PicRating.no(1:80).name}');
+    PICS.in.neut = dir('Water*');
+    
 elseif COND == 2;               %Condition = 2 is not food (birds/flowers)
-    PICS.in.go = dir('*bird*.jpg');
-    PICS.in.no = dir('*flowers*.jpg');
-    PICS.in.neut = dir('*mam*.jpg');
+    PICS.in.go = dir('Bird*');
+    PICS.in.no = dir('Flowers*');
+    PICS.in.neut = dir('Mam*');
 end
-% picsfields = fieldnames(PICS.in);
+% % 
+% % [imgdir,~,~] = fileparts(which('Respond_Signal_Training.m'));
+% % 
+% % try
+% %     cd([imgdir filesep 'IMAGES'])
+% % catch
+% %     error('Could not find and/or open the IMAGES folder.');
+% % end
+% % 
+% % PICS =struct;
+% % if COND == 1;                   %Condtion = 1 is food. 
+% %     PICS.in.go = dir('good*.jpg');
+% %     PICS.in.no = dir('*bad*.jpg');
+% %     PICS.in.neut = dir('*water*.jpg');
+% % elseif COND == 2;               %Condition = 2 is not food (birds/flowers)
+% %     PICS.in.go = dir('*bird*.jpg');
+% %     PICS.in.no = dir('*flowers*.jpg');
+% %     PICS.in.neut = dir('*mam*.jpg');
+% % end
 
 %Check if pictures are present. If not, throw error.
 %Could be updated to search computer to look for pics...
@@ -125,7 +171,7 @@ commandwindow;
 
 %%
 %change this to 0 to fill whole screen
-DEBUG=1;
+DEBUG=0;
 
 %set up the screen and dimensions
 
@@ -182,7 +228,8 @@ Screen('TextSize',w,25);
 KbName('UnifyKeyNames');
 
 %% Set frame size;
-STIM.framerect = [XCENTER-330; YCENTER-330; XCENTER+330; YCENTER+330];
+STIM.imgrect = [XCENTER-300; YCENTER-300; XCENTER+300; YCENTER+300];
+
 
 
 %% Initial screen
@@ -199,56 +246,58 @@ KbWait();
 
 %% Practice
 
-% %Add 1 = practice sort of thing? Or practice is mandatory...
-% practpic = imread(getfield(PICS,'in','neut',{1},'name'));
-% practpic = Screen('MakeTexture',w,practpic);
-% practpic2 = imread(getfield(PICS,'in','neut',{2},'name'));
-% practpic2 = Screen('MakeTexture',w,practpic2);
-% PsychPortAudio('FillBuffer', pahandle, wave);
-% 
-% DrawFormattedText(w,' First, let''s practice.\n\nPress any key to continue.','center','center',COLORS.WHITE);
-% Screen('Flip',w);
-% KbWait([],2);
-% 
-% 
-% %GO PRACTICE
-% Screen('DrawTexture',w,practpic);
-% Screen('Flip',w);
-% WaitSecs(.300);
-% PsychPortAudio('Start', pahandle, 1);
-% WaitSecs(.5);
-% 
-% Screen('DrawTexture',w,practpic);
-% DrawFormattedText(w,'In this trial, you would press the space bar as quickly as you could since you heard a beep.','center',YCENTER,COLORS.BLUE,60);
-% Screen('Flip',w);
-% WaitSecs(5);
-% Screen('DrawTexture',w,practpic);
-% DrawFormattedText(w,'In this trial, you would press the space bar as quickly as you could since you heard a beep.\n\nPress the space bar to continue.','center',YCENTER,COLORS.BLUE,60);
-% Screen('Flip',w);
-% 
-% KbWait([],2);
-% Screen('Flip',w);
-% Screen('Flip',w);
-% WaitSecs(2);
-% 
-% %NO GO PRACTICE
-% DrawFormattedText(w,'Now let''s see one without a beep.','center','center',COLORS.WHITE);
-% Screen('Flip',w);
-% WaitSecs(3);
-% 
-% Screen('DrawTexture',w,practpic2);
-% Screen('Flip',w);
-% WaitSecs(1);
-% Screen('DrawTexture',w,practpic2);
-% DrawFormattedText(w,'In this trial, DO NOT press the space bar, since there was no beep.','center',YCENTER,COLORS.BLUE,60);
-% Screen('Flip',w);
-% WaitSecs(5);
-% Screen('DrawTexture',w,practpic2);
-% DrawFormattedText(w,'In this trial, DO NOT press the space bar, since there was no beep.\n\nPress enter to continue on to the task.','center',YCENTER,COLORS.BLUE,60);
-% Screen('Flip',w);
-% KbWait([],2);
-% 
-% %Now let's run a few trials?
+if prac == 1;
+
+    practpic = imread(getfield(PICS,'in','neut',{1},'name'));
+    practpic = Screen('MakeTexture',w,practpic);
+    practpic2 = imread(getfield(PICS,'in','neut',{2},'name'));
+    practpic2 = Screen('MakeTexture',w,practpic2);
+    PsychPortAudio('FillBuffer', pahandle, wave);
+    
+    DrawFormattedText(w,' First, let''s practice.\n\nPress any key to continue.','center','center',COLORS.WHITE);
+    Screen('Flip',w);
+    KbWait([],2);
+    
+    
+    %GO PRACTICE
+    Screen('DrawTexture',w,practpic,[],STIM.imgrect);
+    Screen('Flip',w);
+    WaitSecs(.300);
+    PsychPortAudio('Start', pahandle, 1);
+    WaitSecs(.5);
+    
+    Screen('DrawTexture',w,practpic,[],STIM.imgrect);
+    DrawFormattedText(w,'In this trial, you would press the space bar as quickly as you could since you heard a beep.','center',YCENTER,COLORS.RED,60);
+    Screen('Flip',w);
+    WaitSecs(5);
+    Screen('DrawTexture',w,practpic,[],STIM.imgrect);
+    DrawFormattedText(w,'In this trial, you would press the space bar as quickly as you could since you heard a beep.\n\nPress the space bar to continue.','center',YCENTER,COLORS.RED,60);
+    Screen('Flip',w);
+    
+    KbWait([],2);
+    Screen('Flip',w);
+    Screen('Flip',w);
+    WaitSecs(2);
+    
+    %NO GO PRACTICE
+    DrawFormattedText(w,'Now let''s see one without a beep.','center','center',COLORS.WHITE);
+    Screen('Flip',w);
+    WaitSecs(3);
+    
+    Screen('DrawTexture',w,practpic2,[],STIM.imgrect);
+    Screen('Flip',w);
+    WaitSecs(1);
+    Screen('DrawTexture',w,practpic2,[],STIM.imgrect);
+    DrawFormattedText(w,'In this trial, DO NOT press the space bar, since there was no beep.','center',YCENTER,COLORS.RED,60);
+    Screen('Flip',w);
+    WaitSecs(5);
+    Screen('DrawTexture',w,practpic2,[],STIM.imgrect);
+    DrawFormattedText(w,'In this trial, DO NOT press the space bar, since there was no beep.\n\nPress enter to continue on to the task.','center',YCENTER,COLORS.RED,60);
+    Screen('Flip',w);
+    KbWait([],2);
+    Screen('Flip',w);
+end
+
 
 
 %% Task
@@ -391,7 +440,7 @@ correct = -999;
 
 trialduration = STIM.trialdur - RespST.var.delay(trial,block);
 
-Screen('DrawTexture',w,PICS.out(trial).texture);
+Screen('DrawTexture',w,PICS.out(trial).texture,[],STIM.imgrect);
 pre_start = Screen('Flip',w);
 
     %First check for premature button pressing.
@@ -403,7 +452,7 @@ pre_start = Screen('Flip',w);
         if Down_pre == 1 && find(Code_pre) == KEY.rt
             %Pressed too soon.
             trial_rt = pre_start - GetSecs() - RespST.var.delay(trial,block);      %This will show -X ms how early they were.
-            Screen('DrawTexture',w,PICS.out(trial).texture);
+            Screen('DrawTexture',w,PICS.out(trial).texture,[],STIM.imgrect);
             DrawFormattedText(w,'X\n\nToo soon','center','center',COLORS.RED);
             prefail = 1;
             correct = 0;
@@ -434,7 +483,7 @@ if prefail == 0;
             
             if RespST.var.GoNoGo(trial,block) == 0;
                 %This was incorrect press.
-                Screen('DrawTexture',w,PICS.out(trial).texture);
+                Screen('DrawTexture',w,PICS.out(trial).texture,[],STIM.imgrect);
                 DrawFormattedText(w,'X','center','center',COLORS.RED);
                 correct = 0;
                 Screen('Flip',w');
@@ -456,7 +505,7 @@ if prefail == 0;
             Screen('Flip',w);                   %'Flip in order to clear buffer; next 'flip' (in main script) flips to black screen.
             correct = 1;
         elseif RespST.var.GoNoGo(trial,block) == 1;
-            Screen('DrawTexture',w,PICS.out(trial).texture);
+            Screen('DrawTexture',w,PICS.out(trial).texture,[],STIM.imgrect);
             DrawFormattedText(w,'X','center','center',COLORS.RED);
             Screen('Flip',w);
             correct = 0;
