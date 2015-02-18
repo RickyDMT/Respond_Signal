@@ -167,6 +167,7 @@ end
     RespST.data.rt = NaN(STIM.trials, STIM.blocks);
     RespST.data.correct = NaN(STIM.trials, STIM.blocks)-999;
     RespST.data.avg_rt = NaN(STIM.blocks,1);
+    RespST.data.picname = cell(STIM.trials,STIM.blocks);
     RespST.data.info.ID = ID;
     RespST.data.info.cond = COND;               %Condtion 1 = Food; Condition 2 = animals
     RespST.data.info.session = SESS;
@@ -266,6 +267,7 @@ if prac == 1;
     %GO PRACTICE
     DrawFormattedText(w,'In this trial, you will hear a beep. Press the space bar as quickly as you can AFTER you hear the beep.','center',YCENTER,COLORS.WHITE,60);
     Screen('Flip',w);
+    KbWait([],2);
     
     prac_corr = 0;
     while prac_corr == 0
@@ -281,13 +283,13 @@ if prac == 1;
             [pDown, ~, pCode] = KbCheck(); %waits for space bar to be pressed
             if pDown == 1 && find(pCode) == KEY.rt
                 Screen('DrawTexture',w,practpic,[],STIM.imgrect);
-                DrawFormattedText(w,'Good! Just remember to press it as fast as quickly as you can AFTER the beep!','center',YCENTER+330,COLORS.GREEN,60);
+                DrawFormattedText(w,'Good! Just remember to press it as quickly as you can after the beep!','center',YCENTER+330,COLORS.GREEN,60);
                 Screen('Flip',w);
                 prac_corr = 1;
                 break
             elseif telap_prac > 1
                 Screen('DrawTexture',w,practpic,[],STIM.imgrect);
-                DrawFormattedText(w,'X\n\nPress the SPACE BAR as quickly after the beep as possible!\n Let''s try that again...','center',YCENTER,COLORS.RED,60);
+                DrawFormattedText(w,'X\n\nPlease respond more quickly!\n\nPress the space bar as quickly after the beep as possible!\n Let''s try that again...','center',YCENTER,COLORS.RED,60);
                 Screen('Flip',w);
                 WaitSecs(3);
                 Screen('Flip',w);
@@ -312,7 +314,7 @@ if prac == 1;
     while prac_corr2 == 0;
         
         Screen('DrawTexture',w,practpic2,[],STIM.imgrect);
-        prac_start = Screen('Flip');
+        prac_start = Screen('Flip',w);
         telap_prac = 0;
         while telap_prac < 1.5;
             telap_prac = GetSecs() - prac_start;
@@ -321,28 +323,21 @@ if prac == 1;
             if Down_pre == 1 && find(Code_pre) == KEY.rt
                 Screen('DrawTexture',w,practpic2,[],STIM.imgrect);
                 DrawFormattedText(w,'X\n\nDo not press if you do not hear a beep!','center','center',COLORS.RED)
-                Screen('Flip');
+                Screen('Flip',w);
                 WaitSecs(2);
-                Screen('Flip');
-            else
+                Screen('Flip',w);
+            elseif telap_prac > 1.5
+                Screen('DrawTexture',w,practpic2,[],STIM.imgrect);
+                DrawFormattedText(w,'Good work! DO NOT press the space bar when you do not hear a beep','center',YCENTER+330,COLORS.GREEN);
+                Screen('Flip',w);
+                WaitSecs(5);
                 prac_corr2 = 1;
+                break
             end
         end
     end
             
           
-    Screen('DrawTexture',w,practpic2,[],STIM.imgrect);
-    Screen('Flip',w);
-    WaitSecs(1);
-    %Screen('DrawTexture',w,practpic2,[],STIM.imgrect);
-    DrawFormattedText(w,'In this trial, DO NOT press the space bar, since there was no beep.','center',YCENTER,COLORS.WHITE,60);
-    Screen('Flip',w);
-    WaitSecs(5);
-    Screen('DrawTexture',w,practpic2,[],STIM.imgrect);
-    DrawFormattedText(w,'In this trial, DO NOT press the space bar, since there was no beep.\n\nPress enter to continue on to the task.','center',YCENTER,COLORS.WHITE,60);
-    Screen('Flip',w);
-    KbWait([],2);
-    Screen('Flip',w);
 end
 
 
@@ -376,65 +371,59 @@ for block = 1:STIM.blocks;
     block_text = sprintf('Block %d Results',block);
     
     c = RespST.data.correct(:,block) == 1;                                 %Find correct trials
-    corr_count = sprintf('Number Correct:\t%d of %d',length(find(c)),STIM.trials);  %Number correct = length of find(c)
+%     corr_count = sprintf('Number Correct:\t%d of %d',length(find(c)),STIM.trials);  %Number correct = length of find(c)
     corr_per = length(find(c))*100/STIM.trials;                           %Percent correct = length find(c) / total trials
-    corr_pert = sprintf('Percent Correct:\t%4.1f%%',corr_per);          %sprintf that data to string.
+%     corr_pert = sprintf('Percent Correct:\t%4.1f%%',corr_per);          %sprintf that data to string.
     
     if isempty(c(c==1))
         %Don't try to calculate avg RT, they got them all wrong (WTF?)
         %Display "N/A" for this block's RT.
-        ibt_rt = sprintf('Average RT:\tUnable to calculate RT.');
+%         ibt_rt = sprintf('Average RT:\tUnable to calculate RT.');
+        fulltext = sprintf('Number Correct:        %d of %d\nPercent Correct:        %4.1f%%\nAverage RT:        Unable to calculate due to 0 correct trials.',length(find(c)),STIM.trials,corr_per);
     else
         block_go = RespST.var.GoNoGo(:,block) == 1;                        %Find go trials
         blockrts = RespST.data.rt(:,block);                                %Pull all RT data
         blockrts = blockrts(c & block_go);                              %Resample RT only if go & correct.
         RespST.data.avg_rt(block) = fix(mean(blockrts)*1000);                        %Display avg rt in milliseconds.
-        ibt_rt = sprintf('Average RT:\t\t\t%3d milliseconds',RespST.data.avg_rt(block));
+        fulltext = sprintf('Number Correct:        %d of %d\nPercent Correct:        %4.1f%%\nAverage Rt:            %3d milliseconds',length(find(c)),STIM.trials,corr_per,RespST.data.avg_rt(block));
     end
     
     ibt_xdim = wRect(3)/10;
     ibt_ydim = wRect(4)/4;
-    old = Screen('TextSize',w,25);
     DrawFormattedText(w,block_text,'center',wRect(4)/10,COLORS.WHITE);   %Next lines display all the data.
-    DrawFormattedText(w,corr_count,ibt_xdim,ibt_ydim,COLORS.WHITE);
-    DrawFormattedText(w,corr_pert,ibt_xdim,ibt_ydim+30,COLORS.WHITE);    
-    DrawFormattedText(w,ibt_rt,ibt_xdim,ibt_ydim+60,COLORS.WHITE);
-    %Screen('Flip',w);
+    DrawFormattedText(w,fulltext,ibt_xdim,ibt_ydim,COLORS.WHITE,[],[],[],1.5);
     
     if block > 1
         % Also display rest of block data summary
         tot_trial = block * STIM.trials;
         totes_c = RespST.data.correct == 1;
-        corr_count_totes = sprintf('Number Correct: \t%d of %d',length(find(totes_c)),tot_trial);
+%         corr_count_totes = sprintf('Number Correct: \t%d of %d',length(find(totes_c)),tot_trial);
         corr_per_totes = length(find(totes_c))*100/tot_trial;
-        corr_pert_totes = sprintf('Percent Correct:\t%4.1f%%',corr_per_totes);
+%         corr_pert_totes = sprintf('Percent Correct:\t%4.1f%%',corr_per_totes);
         
         if isempty(totes_c(totes_c ==1))
             %Don't try to calculate RT, they have missed EVERY SINGLE GO
             %TRIAL! 
             %Stop task & alert experimenter?
-            tot_rt = sprintf('Block %d Average RT:\tUnable to calculate RT due to 0 correct trials.',block);
+            fullblocktext = sprintf('Number Correct:\t\t%d of %d\nPercent Correct:\t\t%4.1f%%\nAverage RT:\tUnable to calculate RT due to 0 correct trials.',length(find(totes_c)),tot_trial,corr_per_totes);            
         else
             tot_go = RespST.var.GoNoGo == 1;
             totrts = RespST.data.rt;
             totrts = totrts(totes_c & tot_go);
             avg_rt_tote = fix(mean(totrts)*1000);     %Display in units of milliseconds.
-            tot_rt = sprintf('Average RT:\t\t\t%3d milliseconds',avg_rt_tote);
+            fullblocktext = sprintf('Number Correct:\t\t%d of %d\nPercent Correct:\t\t%4.1f%%\nAverage RT:\t\t\t%3d milliseconds',length(find(totes_c)),tot_trial,corr_per_totes,avg_rt_tote);
         end
         
-        DrawFormattedText(w,'Total Results','center',ibt_ydim+120,COLORS.WHITE);
-        DrawFormattedText(w,corr_count_totes,ibt_xdim,ibt_ydim+150,COLORS.WHITE);
-        DrawFormattedText(w,corr_pert_totes,ibt_xdim,ibt_ydim+180,COLORS.WHITE);
-        DrawFormattedText(w,tot_rt,ibt_xdim,ibt_ydim+210,COLORS.WHITE);
-        %Screen('Flip',w);
+        DrawFormattedText(w,'Total Results','center',YCENTER,COLORS.WHITE);
+        DrawFormattedText(w,fullblocktext,ibt_xdim,YCENTER+40,COLORS.WHITE,[],[],[],1.5);
     end
     
     Screen('Flip',w,[],1);
     WaitSecs(5);
     DrawFormattedText(w,'Press any key to continue.','center',wRect(4)*9/10,COLORS.WHITE);
     Screen('Flip',w);
-    KbWait();
-    Screen('TextSize',w,old);
+    KbWait([],2);
+%     Screen('TextSize',w,old);
     
         
     
@@ -449,26 +438,27 @@ end
 %get the parent directory, which is one level up from mfilesdir
 %[parentdir,~,~] =fileparts(mfilesdir);
 savedir = [mfilesdir filesep 'Results' filesep];
+savename = ['RespST_' num2str(ID) '.mat'];
 
-if exist(savedir,'dir') == 0;
-    % If savedir (the directory to save files in) does not exist, make it.
-    mkdir(savedir);
+
+if exist(savename,'file') == 2;
+    savename = ['ResST' num2str(ID) sprintf('%s_%2.0f%02.0f',date,d(4),d(5)) '.mat'];
 end
     
 try
-    
-    %create the paths to the other directories, starting from the parent
-    %directory
-    % savedir = [parentdir filesep 'Results\proDMT\'];
-    %         savedir = [mfilesdir filesep 'Results' filesep];
-    
-    save([savedir 'RespST_' num2str(ID) '_' num2str(SESS) '.mat'],'RespST');
+    save([savedir savename],'RespST');    
     
 catch
-    error('Although data was (most likely) collected, file was not properly saved. 1. Right click on variable in right-hand side of screen. 2. Save as RespST_#_#.mat where first # is participant ID and second is session #. If you are still unsure what to do, contact your boss, Kim Martin, or Erik Knight (elk@uoregon.edu).')
+    warning('Something is amiss with this save. Retrying to save in a more general location...');
+    try
+        save([mfilesdir filesep savename],'RespST');
+    catch
+        warning('STILL problems saving....Try right-clicking on "b" in the "workspace" and Save as...');
+        b = RespST
+    end
 end
 
-DrawFormattedText(w,'Thank you for participating\n in this part of the study!','center','center',COLORS.WHITE);
+DrawFormattedText(w,'Thank you for participating\n in this part of the study!\n\nThe assessor will be with you shortly.','center','center',COLORS.WHITE);
 Screen('Flip', w);
 KbWait();
 
@@ -575,14 +565,19 @@ global PICS RespST w
         pic = RespST.var.picnum(j,block);
         switch RespST.var.trial_type(j,block)
             case {1}
-                PICS.out(j).raw = imread(getfield(PICS,'in','go',{pic},'name'));
+                picn = getfield(PICS,'in','go',{pic},'name');
+%                 PICS.out(j).raw = imread(getfield(PICS,'in','go',{pic},'name'));
 %                 %I think this is is covered outside of switch/case
 %                 PICS.out(j).texture = Screen('MakeTexture',w,PICS.out(j).raw);
             case {2}
-                PICS.out(j).raw = imread(getfield(PICS,'in','no',{pic},'name'));
+                picn = getfield(PICS,'in','no',{pic},'name');
+%                 PICS.out(j).raw = imread(getfield(PICS,'in','no',{pic},'name'));
             case {3}
-                PICS.out(j).raw = imread(getfield(PICS,'in','neut',{pic},'name'));
+                picn = getfield(PICS,'in','neut',{pic},'name');
+%                 PICS.out(j).raw = imread(getfield(PICS,'in','neut',{pic},'name'));
         end
+        RespST.data.picname(j,block) = {picn};
+        PICS.out(j).raw = imread(picn);
         PICS.out(j).texture = Screen('MakeTexture',w,PICS.out(j).raw);
     end
 %end
