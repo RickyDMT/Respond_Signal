@@ -56,46 +56,51 @@ COLORS.YELLOW = [255 255 0];
 
 STIM = struct;
 STIM.blocks = 8;
-STIM.trials = 25;
+STIM.trials = 44;
 STIM.totes = STIM.blocks*STIM.trials;
+STIM.go_trials = 160;
+STIM.no_trials = 160;
+STIM.neut_trials = 32;
 STIM.trialdur = 1.5;
+STIM.tone_delay = [.2,.3,.4];
 
 %% Find and load pics
 [imgdir,~,~] = fileparts(which('MasterPics_PlaceHolder.m'));
 picratefolder = fullfile(imgdir,'SavingsRatings');
 
-try
-    cd(picratefolder)
-catch
-    error('Could not find and/or open the .');
-end
-
-filen = sprintf('PicRate_%03d.mat',ID);
-try
-    p = open(filen);
-catch
-    warning('Could not find and/or open the rating file.');
-    commandwindow;
-    randopics = input('Would you like to continue with a random selection of images? [1 = Yes, 0 = No]');
-    if randopics == 1
-        p = struct;
-        p.PicRating.go = dir('Healthy*');
-        p.PicRating.no = dir('Unhealthy*');
-        %XXX: ADD RANDOMIZATION SO THAT SAME 80 IMAGES AREN'T CHOSEN
-        %EVERYTIME
-    else
-        error('Task cannot proceed without images. Contact Erik (elk@uoregon.edu) if you have continued problems.')
+if COND == 1;  
+    try
+        cd(picratefolder)
+    catch
+        error('Could not find and/or open the folder that contains the ratings file.');
     end
     
-end
-
-cd(imgdir);
- 
-
-PICS =struct;
-if COND == 1;                   %Condtion = 1 is food. 
-%     PICS.in.go = dir('good*.jpg');
-%     PICS.in.no = dir('*bad*.jpg');
+    filen = sprintf('PicRate_%03d.mat',ID);
+    try
+        p = open(filen);
+    catch
+        warning('Could not find and/or open the rating file.');
+        commandwindow;
+        randopics = input('Would you like to continue with a random selection of images? [1 = Yes, 0 = No]');
+        if randopics == 1
+            p = struct;
+            p.PicRating.go = dir('Healthy*');
+            p.PicRating.no = dir('Unhealthy*');
+            %XXX: ADD RANDOMIZATION SO THAT SAME 80 IMAGES AREN'T CHOSEN
+            %EVERYTIME
+        else
+            error('Task cannot proceed without images. Contact Erik (elk@uoregon.edu) if you have continued problems.')
+        end
+        
+    end
+    
+    cd(imgdir);
+    
+    
+    PICS =struct;
+    % if COND == 1;                   %Condtion = 1 is food.
+    %     PICS.in.go = dir('good*.jpg');
+    %     PICS.in.no = dir('*bad*.jpg');
     %Choose top 80 most appetizing pics)
     PICS.in.go = struct('name',{p.PicRating.go(1:80).name}');
     PICS.in.no = struct('name',{p.PicRating.no(1:80).name}');
@@ -135,15 +140,15 @@ end
 %% Set up trials and other stimulus parameters
 RespST = struct;
 
-trial_types = [ones(length(PICS.in.go),1); repmat(2,length(PICS.in.no),1); repmat(3,length(PICS.in.neut),1)];  %1 = go; 2 = no; 3 = neutral/variable
-gonogo = [ones(length(PICS.in.go),1); zeros(length(PICS.in.go),1)];                         %1 = go; 0 = nogo;
-gonogoh20 = BalanceTrials(sum(trial_types==3),1,[0 1]);     %For neutral, go & no go are randomized
+trial_types = [ones(STIM.go_trials,1); repmat(2,STIM.no_trials,1); repmat(3,STIM.neut_trials,1)];  %1 = go; 2 = no; 3 = neutral/variable
+gonogo = [ones(STIM.go_trials,1); zeros(STIM.no_trials,1)];                         %1 = go; 0 = nogo;
+gonogoh20 = BalanceTrials(STIM.neut_trials,1,[0 1]);     %For neutral, go & no go are randomized
 gonogo = [gonogo; gonogoh20];
 
 %Make long list of #s to represent each pic
-piclist = [1:length(PICS.in.go) 1:length(PICS.in.no) 1:length(PICS.in.neut)]';
-delay = BalanceTrials(STIM.totes,1,[.2,.3,.4]);
-delay = delay(1:length(trial_types));
+piclist = [repmat([1:(STIM.go_trials/2)],1,2) repmat([1:(STIM.no_trials/2)],1,2) randperm(length(PICS.in.neut),STIM.neut_trials)]';
+delay = BalanceTrials(STIM.totes,1,STIM.tone_delay);
+delay = delay(1:length(trial_types));   %Resample for length of total trials in case Balance Trials mucks it up
 
 trial_types = [trial_types gonogo piclist delay];
 
@@ -159,9 +164,9 @@ for g = 1:STIM.blocks;
     RespST.var.delay(1:STIM.trials,g) = shuffled(row:rend,4);
 end
 
-    RespST.data.rt = zeros(STIM.trials, STIM.blocks);
-    RespST.data.correct = zeros(STIM.trials, STIM.blocks)-999;
-    RespST.data.avg_rt = zeros(STIM.blocks,1);
+    RespST.data.rt = NaN(STIM.trials, STIM.blocks);
+    RespST.data.correct = NaN(STIM.trials, STIM.blocks)-999;
+    RespST.data.avg_rt = NaN(STIM.blocks,1);
     RespST.data.info.ID = ID;
     RespST.data.info.cond = COND;               %Condtion 1 = Food; Condition 2 = animals
     RespST.data.info.session = SESS;
@@ -258,24 +263,40 @@ if prac == 1;
     Screen('Flip',w);
     KbWait([],2);
     
-    
     %GO PRACTICE
-    Screen('DrawTexture',w,practpic,[],STIM.imgrect);
+    DrawFormattedText(w,'In this trial, you will hear a beep. Press the space bar as quickly as you can AFTER you hear the beep.','center',YCENTER,COLORS.WHITE,60);
     Screen('Flip',w);
-    WaitSecs(.300);
-    PsychPortAudio('Start', pahandle, 1);
-    WaitSecs(.5);
     
-    Screen('DrawTexture',w,practpic,[],STIM.imgrect);
-    DrawFormattedText(w,'In this trial, you would press the space bar as quickly as you could since you heard a beep.','center',YCENTER,COLORS.RED,60);
-    Screen('Flip',w);
+    prac_corr = 0;
+    while prac_corr == 0
+        Screen('DrawTexture',w,practpic,[],STIM.imgrect);
+        prac_start = Screen('Flip',w);
+        WaitSecs(.300);
+        PsychPortAudio('Start', pahandle, 1);
+        
+        telap_prac = 0;
+        while telap_prac < 1
+            telap_prac = GetSecs() - prac_start;
+            
+            [pDown, ~, pCode] = KbCheck(); %waits for space bar to be pressed
+            if pDown == 1 && find(pCode) == KEY.rt
+                Screen('DrawTexture',w,practpic,[],STIM.imgrect);
+                DrawFormattedText(w,'Good! Just remember to press it as fast as quickly as you can AFTER the beep!','center',YCENTER+330,COLORS.GREEN,60);
+                Screen('Flip',w);
+                prac_corr = 1;
+                break
+            elseif telap_prac > 1
+                Screen('DrawTexture',w,practpic,[],STIM.imgrect);
+                DrawFormattedText(w,'X\n\nPress the SPACE BAR as quickly after the beep as possible!\n Let''s try that again...','center',YCENTER,COLORS.RED,60);
+                Screen('Flip',w);
+                WaitSecs(3);
+                Screen('Flip',w);
+                WaitSecs(.5);
+            end
+        end
+    end
     WaitSecs(5);
-    Screen('DrawTexture',w,practpic,[],STIM.imgrect);
-    DrawFormattedText(w,'In this trial, you would press the space bar as quickly as you could since you heard a beep.\n\nPress the space bar to continue.','center',YCENTER,COLORS.RED,60);
-    Screen('Flip',w);
     
-    KbWait([],2);
-    Screen('Flip',w);
     Screen('Flip',w);
     WaitSecs(2);
     
@@ -284,15 +305,41 @@ if prac == 1;
     Screen('Flip',w);
     WaitSecs(3);
     
+    Screen('Flip',w);
+    WaitSecs(.5);
+    
+    prac_corr2 = 0;
+    while prac_corr2 == 0;
+        
+        Screen('DrawTexture',w,practpic2,[],STIM.imgrect);
+        prac_start = Screen('Flip');
+        telap_prac = 0;
+        while telap_prac < 1.5;
+            telap_prac = GetSecs() - prac_start;
+            
+            [Down_pre, ~, Code_pre] = KbCheck(); %waits for space bar to be pressed
+            if Down_pre == 1 && find(Code_pre) == KEY.rt
+                Screen('DrawTexture',w,practpic2,[],STIM.imgrect);
+                DrawFormattedText(w,'X\n\nDo not press if you do not hear a beep!','center','center',COLORS.RED)
+                Screen('Flip');
+                WaitSecs(2);
+                Screen('Flip');
+            else
+                prac_corr2 = 1;
+            end
+        end
+    end
+            
+          
     Screen('DrawTexture',w,practpic2,[],STIM.imgrect);
     Screen('Flip',w);
     WaitSecs(1);
-    Screen('DrawTexture',w,practpic2,[],STIM.imgrect);
-    DrawFormattedText(w,'In this trial, DO NOT press the space bar, since there was no beep.','center',YCENTER,COLORS.RED,60);
+    %Screen('DrawTexture',w,practpic2,[],STIM.imgrect);
+    DrawFormattedText(w,'In this trial, DO NOT press the space bar, since there was no beep.','center',YCENTER,COLORS.WHITE,60);
     Screen('Flip',w);
     WaitSecs(5);
     Screen('DrawTexture',w,practpic2,[],STIM.imgrect);
-    DrawFormattedText(w,'In this trial, DO NOT press the space bar, since there was no beep.\n\nPress enter to continue on to the task.','center',YCENTER,COLORS.RED,60);
+    DrawFormattedText(w,'In this trial, DO NOT press the space bar, since there was no beep.\n\nPress enter to continue on to the task.','center',YCENTER,COLORS.WHITE,60);
     Screen('Flip',w);
     KbWait([],2);
     Screen('Flip',w);
