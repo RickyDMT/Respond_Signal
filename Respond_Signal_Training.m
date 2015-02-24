@@ -146,7 +146,15 @@ gonogoh20 = BalanceTrials(STIM.neut_trials,1,[0 1]);     %For neutral, go & no g
 gonogo = [gonogo; gonogoh20];
 
 %Make long list of #s to represent each pic
-piclist = [repmat([1:(STIM.go_trials/2)],1,2) repmat([1:(STIM.no_trials/2)],1,2) randperm(length(PICS.in.neut),STIM.neut_trials)]';
+piclist = [repmat([1:(STIM.go_trials/2)],1,2) repmat([1:(STIM.no_trials/2)],1,2)]'; 
+
+if length(PICS.in.neut) >= STIM.neut_trials
+    piclist = [piclist; randperm(length(PICS.in.neut),STIM.neut_trials)'];
+else
+    diff = STIM.neut_trials - length(PICS.in.neut);
+    piclist = [piclist; randperm(length(PICS.in.neut))'; randperm(length(PICS.in.neut),diff)'];
+end
+        
 delay = BalanceTrials(STIM.totes,1,STIM.tone_delay);
 delay = delay(1:length(trial_types));   %Resample for length of total trials in case Balance Trials mucks it up
 
