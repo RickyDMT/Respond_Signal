@@ -66,7 +66,9 @@ STIM.tone_delay = [.2,.3,.4];
 
 %% Find and load pics
 [imgdir,~,~] = fileparts(which('MasterPics_PlaceHolder.m'));
-picratefolder = fullfile(imgdir,'SavingsRatings');
+ picratefolder = fullfile(imgdir,'Saved_Pic_Ratings');  %This is name of folder at ORI
+
+randopics = 0;
 
 if COND == 1;  
     try
@@ -75,7 +77,7 @@ if COND == 1;
         error('Could not find and/or open the folder that contains the ratings file.');
     end
     
-    filen = sprintf('PicRate_%03d.mat',ID);
+    filen = sprintf('PicRatings_CC_%d-1.mat',ID);    %This only looks for ratings from initial session.
     try
         p = open(filen);
     catch
@@ -93,43 +95,30 @@ if COND == 1;
         end
         
     end
+end
     
     cd(imgdir);
     
-    
-    PICS =struct;
-    % if COND == 1;                   %Condtion = 1 is food.
-    %     PICS.in.go = dir('good*.jpg');
-    %     PICS.in.no = dir('*bad*.jpg');
-    %Choose top 80 most appetizing pics)
-    PICS.in.go = struct('name',{p.PicRating.go(1:80).name}');
-    PICS.in.no = struct('name',{p.PicRating.no(1:80).name}');
+PICS =struct;
+if COND == 1;                   %Condtion = 1 is food. 
+    if randopics ==1;
+        %randomly select 60 pictures.
+        PICS.in.go = struct('name',{p.PicRating.H(randperm(60)).name}');
+        PICS.in.no = struct('name',{p.PicRating.U(randperm(60)).name}');
+        PICS.in.neut = dir('Water*');
+    else
+
+    %Choose the pre-selected random 60 from top 80 most appetizing pics)
+    PICS.in.go = struct('name',{p.PicRating.H([p.PicRating.H.chosen]==1).name}');
+    PICS.in.no = struct('name',{p.PicRating.U([p.PicRating.U.chosen]==1).name}');
     PICS.in.neut = dir('Water*');
+    end
     
 elseif COND == 2;               %Condition = 2 is not food (birds/flowers)
     PICS.in.go = dir('Bird*');
     PICS.in.no = dir('Flowers*');
     PICS.in.neut = dir('Mam*');
 end
-% % 
-% % [imgdir,~,~] = fileparts(which('Respond_Signal_Training.m'));
-% % 
-% % try
-% %     cd([imgdir filesep 'IMAGES'])
-% % catch
-% %     error('Could not find and/or open the IMAGES folder.');
-% % end
-% % 
-% % PICS =struct;
-% % if COND == 1;                   %Condtion = 1 is food. 
-% %     PICS.in.go = dir('good*.jpg');
-% %     PICS.in.no = dir('*bad*.jpg');
-% %     PICS.in.neut = dir('*water*.jpg');
-% % elseif COND == 2;               %Condition = 2 is not food (birds/flowers)
-% %     PICS.in.go = dir('*bird*.jpg');
-% %     PICS.in.no = dir('*flowers*.jpg');
-% %     PICS.in.neut = dir('*mam*.jpg');
-% % end
 
 %Check if pictures are present. If not, throw error.
 %Could be updated to search computer to look for pics...
@@ -146,22 +135,34 @@ gonogoh20 = BalanceTrials(STIM.neut_trials,1,[0 1]);     %For neutral, go & no g
 gonogo = [gonogo; gonogoh20];
 
 %Make long list of #s to represent each pic
-piclist = [repmat([1:(STIM.go_trials/2)],1,2) repmat([1:(STIM.no_trials/2)],1,2)]'; 
+% piclist = [repmat([1:(STIM.go_trials/2)],1,2) repmat([1:(STIM.no_trials/2)],1,2)]';
+% piclist = [repmat([1:(STIM.go_trials/2)],1,2) repmat([1:(STIM.no_trials/2)],1,2)]';
+% piclist = [1:60; 1:60; randperm(60,rem(STIM.go_trials,60))'];
 
-if length(PICS.in.neut) >= STIM.neut_trials
-    piclist = [piclist; randperm(length(PICS.in.neut),STIM.neut_trials)'];
-else
-    diff = STIM.neut_trials - length(PICS.in.neut);
-    piclist = [piclist; randperm(length(PICS.in.neut))'; randperm(length(PICS.in.neut),diff)'];
-end
-        
+% if length(PICS.in.neut) >= STIM.neut_trials
+%     piclist = [piclist; randperm(length(PICS.in.neut),STIM.neut_trials)'];
+% else
+%     diff = STIM.neut_trials - length(PICS.in.neut);
+%     piclist = [piclist; randperm(length(PICS.in.neut))'; randperm(length(PICS.in.neut),diff)'];
+% end
+
+piclist = NaN(length(gonogo),1);
+
+trial_types = [trial_types gonogo piclist]; %jitter];
+shuffled = trial_types(randperm(size(trial_types,1)),:);
+
+shuffled((shuffled(:,1)==1),3) = [randperm(60)'; randperm(60)'; randperm(60,rem(STIM.go_trials,60))'];
+shuffled((shuffled(:,1)==2),3) = [randperm(60)'; randperm(60)'; randperm(60,rem(STIM.no_trials,60))'];
+shuffled((shuffled(:,1)==3),3) = [randperm(20)'; randperm(20,rem(STIM.neut_trials,20))'];
+
+
 delay = BalanceTrials(STIM.totes,1,STIM.tone_delay);
 delay = delay(1:length(trial_types));   %Resample for length of total trials in case Balance Trials mucks it up
 
-trial_types = [trial_types gonogo piclist delay];
-
-shuffled = trial_types(randperm(size(trial_types,1)),:);
-
+% trial_types = [trial_types gonogo piclist delay];
+% 
+% shuffled = trial_types(randperm(size(trial_types,1)),:);
+shuffled = [shuffled delay];
 
 for g = 1:STIM.blocks;
     row = ((g-1)*STIM.trials)+1;
@@ -462,7 +463,7 @@ catch
         save([mfilesdir filesep savename],'RespST');
     catch
         warning('STILL problems saving....Try right-clicking on "b" in the "workspace" and Save as...');
-        b = RespST
+        save RespST
     end
 end
 
@@ -523,7 +524,7 @@ if prefail == 0;
         telap = GetSecs() - RT_start;
         [Down, ~, Code] = KbCheck(); %waits for space bar to be pressed
         
-        if Down == 1 && find(Code) == KEY.rt
+        if Down == 1 && any(find(Code) == KEY.rt)
             trial_rt = GetSecs() - RT_start;
             
             if RespST.var.GoNoGo(trial,block) == 0;
